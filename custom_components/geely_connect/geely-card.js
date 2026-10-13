@@ -509,7 +509,7 @@
     },
     bg: {
       "action.charging": "Зареждане",
-      "action.climate": "Климат",
+      "action.climate": "Климатик",
       "action.close": "Затвори",
       "action.confirm_tap": "сигурни?",
       "action.defrost": "Размразяване",
