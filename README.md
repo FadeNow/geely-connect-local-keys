@@ -44,8 +44,8 @@ polished setup on top.
   changeable at any time.
 - 🌍 **EU, North-American and APAC** backends, detected from the vehicle.
 - 🗣️ **Translated setup** - the configuration dialogs are in English, Hebrew,
-  Arabic, Russian, French and Thai, and the dashboard cards follow Home
-  Assistant's UI language. Entity names follow Home Assistant's own
+  Arabic, Russian, French, Thai and Bulgarian, and the dashboard cards follow
+  Home Assistant's UI language. Entity names follow Home Assistant's own
   language.
 - 🖥️ **Five built-in dashboard cards** - a full cockpit with a complete climate panel, a top-down status view, a compact tile, a mini square and a one-row strip - registered automatically, plus ready-made automations and Blueprints
 - 🚗 **The cards stand down while you drive** - a banner instead of buttons the
@@ -1245,7 +1245,7 @@ payload rather than freezing on its own.
 ```
 custom_components/geely_connect/   the integration itself (what HACS installs)
 ├── brand/                         icon.png / logo.png shown in the HA UI
-├── translations/                  UI translations (en, he, ar, fr, ru, th)
+├── translations/                  UI translations (en, he, ar, fr, ru, th, bg)
 ├── geely-card.js                  the five built-in dashboard cards
 ├── manifest.json                  integration metadata
 └── *.py                           platforms, API client, config flow, …
