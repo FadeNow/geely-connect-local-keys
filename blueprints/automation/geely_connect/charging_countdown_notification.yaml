@@ -297,7 +297,12 @@ action:
                 when: "{{ as_timestamp(states(complete_entity), 0) | int }}"
                 clickAction: !input dashboard_path
       # ---- Stopped before full (early unplug): quiet replace ----------------
-      # Reuses the countdown tag + channel so it swaps the pin without a sound.
+      # clear FIRST, then post the summary. The countdown is an Android ONGOING
+      # notification (persistent + chronometer); re-posting the same tag over it
+      # does not reliably drop the ongoing/ticking state, so without the clear
+      # the countdown can run for hours after a stop. (The "charged" branch above
+      # already clears first for the same reason.) The summary reuses the tag and
+      # channel so it lands where the countdown was, minus the sound.
       - conditions:
           - condition: template
             value_template: >-
@@ -307,6 +312,11 @@ action:
           - condition: template
             value_template: "{{ not_full }}"
         sequence:
+          - service: !input notify_target
+            data:
+              message: clear_notification
+              data:
+                tag: geely_charging
           - service: !input notify_target
             data:
               title: "🔌 Charging stopped"

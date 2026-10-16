@@ -325,8 +325,11 @@
                   # at a view showing the full custom:geely-card and the tap
                   # lands on the full card. Remove the line to just open the app.
                   clickAction: /lovelace/car
-        # Stopped before full (early unplug): a one-shot summary carrying the
-        # countdown tag + channel replaces the pin without a sound (alert_once).
+        # Stopped before full (early unplug): clear the ongoing countdown FIRST,
+        # then post a one-shot summary on the same tag/channel. The countdown is
+        # an Android ongoing (persistent + chronometer) notification; re-posting
+        # the same tag over it does not reliably drop the ongoing/ticking state,
+        # so without the clear it can keep ticking for hours after a stop.
         - conditions:
             - condition: template
               value_template: >-
@@ -338,6 +341,11 @@
               value_template: >-
                 {{ (states('sensor.my_geely_ex5_battery') | float(0)) < 99.5 }}
           sequence:
+            - action: notify.mobile_app_your_phone
+              data:
+                message: clear_notification
+                data:
+                  tag: geely_charging
             - action: notify.mobile_app_your_phone
               data:
                 title: "🔌 Charging stopped"
