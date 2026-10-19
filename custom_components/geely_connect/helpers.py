@@ -141,6 +141,7 @@ def password_decrypt(hass: HomeAssistant, stored: str) -> str:
 WINDOW_CORNERS: tuple[str, ...] = ("Driver", "Passenger", "DriverRear", "PassengerRear")
 
 _CLIMATE_PATH = ("vehicleStatus", "additionalVehicleStatus", "climateStatus")
+_EV_PATH = ("vehicleStatus", "additionalVehicleStatus", "electricVehicleStatus")
 
 
 def walk(d: Any, path: tuple[str, ...]) -> Any:
@@ -278,6 +279,48 @@ def slot_2_window(sched: Any) -> dict | None:
     if not (window.get("startTime") and window.get("endtime")):
         return None
     return window
+
+
+def slot_2_is_on(data: Any) -> bool | None:
+    """Whether an E2's Scheduled Charging is on, from what the car reports.
+
+    `chargeSts` in `electricVehicleStatus` is the state. In ten diagnostics
+    files from the one car that has this slot (#72, 16-19 October) it read
+    "1" after every start and "0" after every stop, the app's own toggle and
+    Home Assistant's alike, whether or not the car happened to be charging:
+    "1" while charging at 97 %, "0" while charging at 59 %, "1" plugged in at
+    58 % and *not* charging because the window had not opened - the car
+    honouring a start sent from here.
+
+    Slot 2's `timerId` ("1" on, "2" off) moved only for the app's own toggle;
+    a start from here left it at "2" while `chargeSts` went to "1" within 16
+    seconds. So `chargeSts` decides whenever the car sends it, and `timerId`
+    only when it does not. The order matters for an app-on followed by a
+    stop from here, where `timerId` would still say on.
+
+    None when neither field answers: unknown, not off.
+    """
+    ev = walk(data or {}, _EV_PATH) or {}
+    sts = str(ev.get("chargeSts"))
+    if sts in ("0", "1"):
+        return sts == "1"
+    sched = data.get("_scheduled_charging") if isinstance(data, dict) else None
+    sched = sched if isinstance(sched, dict) else {}
+    return {"1": True, "2": False}.get(str(sched.get("timerId")))
+
+
+def note_slot_2_state(data: Any, on: bool) -> None:
+    """Write the state just asked for into the coordinator's copy of the car.
+
+    Both fields `slot_2_is_on` reads, so the switch and the time entities
+    agree until the next poll replaces the copy with what the car says.
+    """
+    ev = walk(data or {}, _EV_PATH)
+    if isinstance(ev, dict):
+        ev["chargeSts"] = "1" if on else "0"
+    sched = data.get("_scheduled_charging") if isinstance(data, dict) else None
+    if isinstance(sched, dict):
+        sched["timerId"] = "1" if on else "2"
 
 
 def windows_position(data: Any) -> int | None:

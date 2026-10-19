@@ -143,7 +143,8 @@ _OBSOLETE_UNIQUE_ID_PATTERNS: tuple[str, ...] = (
     # them made every restart delete and re-register a live entity, losing its
     # recorded history and any customisation each time.
     "_sw_sentry_mode",
-    # `charge_state` (chargeSts) field is unreliable.
+    # `charge_state` (chargeSts) field is unreliable as a charging state. On
+    # an E2 it is the Scheduled Charging on/off, read by that switch (#72).
     "_charge_state",
     # Binary sensors made redundant by the new lock/switch/climate entities.
     # The `_bs_` prefix avoids accidentally matching the new switches.

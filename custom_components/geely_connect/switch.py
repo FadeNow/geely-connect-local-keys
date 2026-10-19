@@ -69,6 +69,8 @@ from .helpers import (
     api_can_send,
     api_serves,
     note_schedule_intent,
+    note_slot_2_state,
+    slot_2_is_on,
     slot_2_window,
     walk as _walk,
     steering_wheel_fitted,
@@ -518,10 +520,11 @@ class GeelyScheduledChargingSwitch(CoordinatorEntity, SwitchEntity):
     to change the schedule window.
 
     On a car whose catalogue puts the schedule in slot 2 (an E2, #72) the
-    slot is the E2 app's own: on while it reads `timerId` "1", off while it
-    reads "2" (`timerActivation` reads "1" either way, and `chargeSts`
-    happened to follow the toggle in those files, but it is not read here).
-    The window sent is the one the slot holds; with none, nothing is sent.
+    state is `chargeSts` in the car's status, "1" on and "0" off, which
+    followed every start and stop in ten files from that car; the slot's own
+    `timerId` ("1"/"2") moved only for the app's toggle and is the fallback
+    (see helpers.slot_2_is_on). The window sent is the one the slot holds;
+    with none, nothing is sent.
 
     Note: the Geely server takes ~30 seconds to reflect a scheduled-
     charging change. We use an optimistic `is_on` for 60s after a fire
@@ -561,11 +564,13 @@ class GeelyScheduledChargingSwitch(CoordinatorEntity, SwitchEntity):
         if (self._optimistic_on is not None
                 and time.time() < self._optimistic_until):
             return self._optimistic_on
+        if self._slot_2:
+            # The state lives in the car's status, so an empty slot (a read
+            # that failed) does not blank it.
+            return slot_2_is_on(self.coordinator.data)
         sched = self._sched()
         if not sched:
             return None
-        if self._slot_2:
-            return {"1": True, "2": False}.get(str(sched.get("timerId")))
         v = sched.get("bcCycleActive")
         # Server only includes bcCycleActive when the schedule is
         # active. If schedule data is present but bcCycleActive is
@@ -653,7 +658,7 @@ class GeelyScheduledChargingSwitch(CoordinatorEntity, SwitchEntity):
         _LOGGER.debug("Geely scheduled-charging %s response=%s", command, redact(resp))
         self._optimistic_on = (command == "start")
         self._optimistic_until = time.time() + 60
-        self._sched()["timerId"] = "1" if command == "start" else "2"
+        note_slot_2_state(self.coordinator.data, command == "start")
         note_schedule_intent(self.coordinator, command == "start", self._optimistic_until)
         self.async_write_ha_state()
         schedule_refresh(self._hass, self.coordinator, 15, 20, 20)

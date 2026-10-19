@@ -43,7 +43,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import GeelyControlError, redact, window_length
 from .const import DOMAIN
-from .helpers import (api_serves, schedule_intent, slot_2_window,
+from .helpers import (api_serves, schedule_intent, slot_2_is_on, slot_2_window,
                       truthy as _truthy, schedule_refresh)
 
 _LOGGER = logging.getLogger(__name__)
@@ -204,7 +204,10 @@ class GeelyScheduledChargingTime(CoordinatorEntity, TimeEntity):
         if start == end:
             raise HomeAssistantError(
                 "Geely Scheduled Charging time: the start and the end can't be the same")
-        command = "start" if self._is_on(str(sched.get("timerId")) == "1") else "stop"
+        # `chargeSts` first, `timerId` as the fallback (helpers.slot_2_is_on):
+        # a start from here moves the first and not the second, and reading
+        # the second sent every later time change out as `stop` (#72).
+        command = "start" if self._is_on(slot_2_is_on(self.coordinator.data) is True) else "stop"
         try:
             resp = await self._hass.async_add_executor_job(
                 lambda: self._api.scheduled_charging_set_slot_2(

@@ -1159,9 +1159,10 @@ class GeelyApi:
         The E2's own app sends this body, captured both ways: `command`
         start or stop, `timerId` "2" in both, and the window as a start
         time and its length (`duration`, HH:MM) rather than a start and an
-        end. The car reads it back with an `endtime` as well, and with
-        `timerId` "1" while the schedule is on and "2" while it is off, so
-        that field is a state the server sets, not an echo of this one.
+        end. The car reads it back with an `endtime` as well. Its on/off
+        shows in the status block's `chargeSts` ("1"/"0"), which followed
+        every start and stop sent from here; the slot's `timerId` went to
+        "1" only for the app's own toggle (helpers.slot_2_is_on).
         """
         body = {
             "bizType": "2",

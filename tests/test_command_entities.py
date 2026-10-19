@@ -1029,17 +1029,78 @@ def _slot_2(timer_id="1", window=True):
     return sched
 
 
-def test_the_slot_2_switch_reads_the_timer_id_the_car_reports():
-    """`timerId` "1" while on, "2" while off; `timerActivation` reads "1" in
-    both, so it decides nothing. Anything else is unknown, not off."""
+def test_the_slot_2_switch_reads_charge_sts_and_falls_back_to_the_timer_id():
+    """Ten files from the one E2 (#72): `chargeSts` "1" after every start and
+    "0" after every stop, the app's and HA's, charging or not. `timerId` went
+    to "1" for the app's toggle only, so it decides when `chargeSts` is
+    missing. Anything else is unknown, not off."""
     if not have_homeassistant():
         skip("homeassistant not installed")
     sw = load("switch")
-    for timer_id, want in (("1", True), ("2", False), ("0", None), (None, None)):
-        hass, b = _bundle(_status(sched=_slot_2(timer_id)), caps=_SLOT_2_CAPS)
-        assert sw.GeelyScheduledChargingSwitch(hass, b).is_on is want, timer_id
-    hass, b = _bundle(_status(sched=_slot_2("1")))
+    cases = (
+        ({"chargeSts": "1"}, "2", True),      # 19 Oct, 1.json: HA start, car not charging
+        ({"chargeSts": "0"}, "1", False),     # app-on then a stop from here
+        ({"chargeSts": 1}, "2", True),
+        ({"chargeSts": ""}, "1", True),       # fallback
+        ({}, "1", True), ({}, "2", False), ({}, "0", None), ({}, None, None),
+    )
+    for ev, timer_id, want in cases:
+        hass, b = _bundle(_status(ev=ev, sched=_slot_2(timer_id)), caps=_SLOT_2_CAPS)
+        assert sw.GeelyScheduledChargingSwitch(hass, b).is_on is want, (ev, timer_id)
+    # An empty slot (the read failed) does not blank a state the car reports.
+    hass, b = _bundle(_status(ev={"chargeSts": "1"}), caps=_SLOT_2_CAPS)
+    assert sw.GeelyScheduledChargingSwitch(hass, b).is_on is True
+    hass, b = _bundle(None, caps=_SLOT_2_CAPS)
+    assert sw.GeelyScheduledChargingSwitch(hass, b).is_on is None
+    hass, b = _bundle(_status(ev={"chargeSts": "1"}, sched=_slot_2("1")))
     assert sw.GeelyScheduledChargingSwitch(hass, b).is_on is False   # slot 6 rules
+
+
+def test_a_slot_2_press_writes_both_fields_the_switch_reads():
+    """The coordinator's copy of the car says what was just asked for, in
+    `chargeSts` and `timerId` alike, until the next poll. With no status
+    block and no slot there is nothing to write and nothing breaks."""
+    if not have_homeassistant():
+        skip("homeassistant not installed")
+    sw = load("switch")
+    data = _status(ev={"chargeSts": "0"}, sched=_slot_2("2"))
+    hass, b = _bundle(data, caps=_SLOT_2_CAPS)
+    ent = _quiet(sw.GeelyScheduledChargingSwitch(hass, b))
+    with _patched(sw, schedule_refresh=_RefreshRec(), time=_Clock()):
+        asyncio.run(ent.async_turn_on())
+    ev = data["vehicleStatus"]["additionalVehicleStatus"]["electricVehicleStatus"]
+    assert (ev["chargeSts"], data["_scheduled_charging"]["timerId"]) == ("1", "1")
+    h = load("helpers")
+    bare = {"_scheduled_charging": None}
+    h.note_slot_2_state(bare, False)
+    assert bare == {"_scheduled_charging": None}
+    h.note_slot_2_state(None, True)
+
+
+def test_maknijs_19_october_sequence_sends_the_time_change_as_start():
+    """Switch on from HA at 13:16Z; the car honoured it (plugged in at 58 %,
+    outside the window, not charging) and `chargeSts` read "1", but the slot's
+    `timerId` stayed "2", so the switch showed off and the two time changes
+    at 13:20Z went out as `stop`. Read `chargeSts` and they go out as start."""
+    if not have_homeassistant():
+        skip("homeassistant not installed")
+    sw, t = load("switch"), load("time")
+    api = _Api()
+    data = _status(ev={"chargeSts": "0"}, sched=_slot_2("2"))
+    hass, b = _bundle(data, api=api, caps=_SLOT_2_CAPS)
+    switch = _quiet(sw.GeelyScheduledChargingSwitch(hass, b))
+    start = _quiet(t.GeelyScheduledChargingTime(hass, b, "start"))
+    clock = _Clock()
+    with _patched(sw, schedule_refresh=_RefreshRec(), time=clock), \
+            _patched(t, schedule_refresh=_RefreshRec(), time_mod=clock):
+        asyncio.run(switch.async_turn_on())
+        # The car's answer, as the polls read it back: chargeSts moved, timerId did not.
+        data["vehicleStatus"]["additionalVehicleStatus"]["electricVehicleStatus"]["chargeSts"] = "1"
+        data["_scheduled_charging"]["timerId"] = "2"
+        clock.now += 141                        # the 60 s hold is long gone
+        assert switch.is_on is True
+        asyncio.run(start.async_set_value(dtime(13, 59)))
+    assert [c[:2] for c in api.calls] == [("slot_2", "start"), ("slot_2", "start")], api.calls
 
 
 def test_the_slot_2_switch_sends_the_window_the_car_holds():
@@ -1129,21 +1190,27 @@ def test_a_time_change_after_a_switch_press_keeps_the_pressed_state():
     if not have_homeassistant():
         skip("homeassistant not installed")
     sw, t = load("switch"), load("time")
+    def stale_slot_2(data):
+        data["_scheduled_charging"]["timerId"] = "2"
+        data["vehicleStatus"]["additionalVehicleStatus"]["electricVehicleStatus"]["chargeSts"] = "0"
+
     cases = (
-        (_SLOT_2_CAPS, _slot_2("2"), lambda s: s.update(timerId="2"), "slot_2"),
-        ({}, {"rbcStartTime": "10:00", "rbcEndTime": "17:00"},
-         lambda s: s.pop("bcCycleActive", None), "scheduled_charging_set"),
+        (_SLOT_2_CAPS, _slot_2("2"), {"chargeSts": "0"}, stale_slot_2, "slot_2"),
+        ({}, {"rbcStartTime": "10:00", "rbcEndTime": "17:00"}, None,
+         lambda d: d["_scheduled_charging"].pop("bcCycleActive", None),
+         "scheduled_charging_set"),
     )
-    for caps, sched, stale_poll, call in cases:
+    for caps, sched, ev, stale_poll, call in cases:
         api = _Api()
-        hass, b = _bundle(_status(sched=sched), api=api, caps=caps)
+        data = _status(ev=ev, sched=sched)
+        hass, b = _bundle(data, api=api, caps=caps)
         switch = _quiet(sw.GeelyScheduledChargingSwitch(hass, b))
         end = _quiet(t.GeelyScheduledChargingTime(hass, b, "end"))
         clock = _Clock()
         with _patched(sw, schedule_refresh=_RefreshRec(), time=clock), \
                 _patched(t, schedule_refresh=_RefreshRec(), time_mod=clock):
             asyncio.run(switch.async_turn_on())
-            stale_poll(sched)                      # the re-read says still off
+            stale_poll(data)                       # the re-read says still off
             clock.now += 59
             asyncio.run(end.async_set_value(dtime(16, 0)))
             clock.now += 2                         # the hold has lapsed
