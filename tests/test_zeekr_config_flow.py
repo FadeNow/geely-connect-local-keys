@@ -384,7 +384,7 @@ def test_the_login_helper_runs_the_idaas_and_tsp_legs():
     cf, flow = _flow()
 
     class _Idaas:
-        def __init__(self, country="AU"):
+        def __init__(self, country="AU", profile=None):
             pass
 
         def login_by_email_password(self, email, password):
