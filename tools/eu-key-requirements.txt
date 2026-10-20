@@ -1,0 +1,5 @@
+androguard==4.1.4
+asn1crypto==1.5.1
+cryptography==50.0.2
+pyelftools==0.33
+unicorn==2.1.4
