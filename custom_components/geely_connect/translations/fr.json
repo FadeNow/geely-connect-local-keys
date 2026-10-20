@@ -3,7 +3,7 @@
     "step": {
       "platform": {
         "title": "Quel backend Geely ?",
-        "description": "Choisissez la plateforme sur laquelle se trouve votre compte.\n\nBackend existant : l'intégration Geely Global actuelle (e-mail + code, certificat par appareil).\n\nNouvelle plateforme Geely EM : le backend de la nouvelle application Geely EM (e-mail + mot de passe, cloud Zeekr) - expérimental. Terminez d'abord la configuration de l'application sur votre téléphone.",
+        "description": "Choisissez la plateforme sur laquelle se trouve votre compte.\n\nBackend existant : l'intégration Geely Global actuelle (e-mail + code, certificat par appareil).\n\nNouvelle plateforme Geely / Geely EM : le backend de la nouvelle application Geely / Geely EM (e-mail + mot de passe, cloud Zeekr) - expérimental. Terminez d'abord la configuration de l'application sur votre téléphone.",
         "data": {
           "platform": "Plateforme"
         }
@@ -34,8 +34,8 @@
         }
       },
       "zeekr_login": {
-        "title": "Plateforme Geely EM (nouvelle application)",
-        "description": "Expérimental : le backend de la nouvelle plateforme est encore en cours de vérification sur de vrais véhicules ; considérez-le comme une version bêta.\n\nSaisissez l'e-mail et le mot de passe que vous utilisez avec la nouvelle application Geely. Si ce n'est pas encore fait, ouvrez d'abord la nouvelle application Geely sur votre téléphone et terminez-y la configuration (l'application vous guide pour définir un mot de passe et associer votre véhicule). Cette intégration se connecte uniquement avec l'e-mail et le mot de passe.\n\nMémoriser le mot de passe permet à la session de se renouveler d'elle-même (comme le fait l'application). C'est le mot de passe de votre compte Geely : il est masqué dans les journaux et les diagnostics, et chiffré au repos si vous ajoutez une clé 'geely_password_key' à secrets.yaml (sinon il est stocké en clair dans le stockage de Home Assistant). Décochez pour vous ré-authentifier manuellement environ tous les 2 jours.",
+        "title": "Plateforme Geely / Geely EM (nouvelle application)",
+        "description": "Pour les pays européens, ajoutez votre propre fichier local geely_eu_app_keys.json avant la connexion. Consultez docs/LOCAL-EU-KEYS.md. Cette version ne fournit pas les clés de l’application européenne.\n\nExpérimental : le backend de la nouvelle plateforme est encore en cours de vérification sur de vrais véhicules ; considérez-le comme une version bêta.\n\nSaisissez l'e-mail et le mot de passe que vous utilisez avec la nouvelle application Geely. Si ce n'est pas encore fait, ouvrez d'abord la nouvelle application Geely sur votre téléphone et terminez-y la configuration (l'application vous guide pour définir un mot de passe et associer votre véhicule). Cette intégration se connecte uniquement avec l'e-mail et le mot de passe.\n\nMémoriser le mot de passe permet à la session de se renouveler d'elle-même (comme le fait l'application). C'est le mot de passe de votre compte Geely : il est masqué dans les journaux et les diagnostics, et chiffré au repos si vous ajoutez une clé 'geely_password_key' à secrets.yaml (sinon il est stocké en clair dans le stockage de Home Assistant). Décochez pour vous ré-authentifier manuellement environ tous les 2 jours.",
         "data": {
           "email": "Email",
           "password": "Mot de passe",
@@ -56,11 +56,12 @@
     "error": {
       "send_code_failed": "Échec de l'envoi du code. Réessayez.",
       "captcha_unreachable": "Home Assistant n'a pas pu joindre le serveur captcha de Geely (captcha4.geely.com). La configuration s'exécute depuis la machine Home Assistant, et cet hôte se trouve en Chine continentale - vérifiez que votre réseau ou DNS ne le bloque pas (listes de blocage Pi-hole/AdGuard, géofiltres du routeur), puis réessayez.",
-      "network_unreachable": "Home Assistant n'a pas pu joindre la plateforme Geely EM (zeekrlife.com). Vérifiez le réseau et réessayez.",
+      "network_unreachable": "Home Assistant n'a pas pu joindre la plateforme Geely / Geely EM (zeekrlife.com). Vérifiez le réseau et réessayez.",
       "invalid_code": "Code refusé (code à usage unique).",
       "invalid_credentials": "Cet e-mail ou ce mot de passe n'a pas été accepté. Si votre compte est nouveau dans la nouvelle application Geely, ouvrez d'abord l'application sur votre téléphone et terminez-y la configuration (elle définit votre mot de passe et associe votre véhicule), puis réessayez.",
       "no_vehicles": "Connexion réussie mais aucun véhicule trouvé.",
-      "unknown": "Une erreur s'est produite. Consultez les journaux."
+      "unknown": "Une erreur s'est produite. Consultez les journaux.",
+      "eu_app_keys_required": "Clés de l’application européenne absentes ou invalides. Placez votre propre fichier geely_eu_app_keys.json dans le dossier de configuration de Home Assistant, puis réessayez. Consultez docs/LOCAL-EU-KEYS.md."
     },
     "abort": {
       "already_configured": "Ce véhicule est déjà configuré.",
@@ -90,7 +91,7 @@
   "issues": {
     "x_vin_missing": {
       "title": "{name} : impossible de dériver le jeton du véhicule pour la nouvelle plateforme",
-      "description": "Ce véhicule est sur la nouvelle plateforme Geely EM, et le jeton qui l'identifie là-bas (le x-vin) n'a pu être dérivé d'aucune version de l'application connue de cette intégration - la passerelle a rejeté tous les candidats. Tant qu'il n'en a pas, le chauffage et le refroidissement rapides, le catalogue des fonctions et la lecture d'état par la nouvelle passerelle restent désactivés.\n\nOuvrez **Configurer** sur l'entrée Geely Connect et collez le jeton de votre téléphone dans **Jeton du véhicule pour la nouvelle plateforme (x-vin)**. La dérivation est retentée à chaque démarrage, donc une version qui ajoute votre version de l'application fera disparaître ce problème d'elle-même."
+      "description": "Ce véhicule est sur la nouvelle plateforme Geely / Geely EM, et le jeton qui l'identifie là-bas (le x-vin) n'a pu être dérivé d'aucune version de l'application connue de cette intégration - la passerelle a rejeté tous les candidats. Tant qu'il n'en a pas, le chauffage et le refroidissement rapides, le catalogue des fonctions et la lecture d'état par la nouvelle passerelle restent désactivés.\n\nOuvrez **Configurer** sur l'entrée Geely Connect et collez le jeton de votre téléphone dans **Jeton du véhicule pour la nouvelle plateforme (x-vin)**. La dérivation est retentée à chaque démarrage, donc une version qui ajoute votre version de l'application fera disparaître ce problème d'elle-même."
     }
   }
 }

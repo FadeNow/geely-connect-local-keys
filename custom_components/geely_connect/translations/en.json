@@ -3,14 +3,14 @@
     "step": {
       "platform": {
         "title": "Which Geely backend?",
-        "description": "Pick the platform your account is on.\n\nExisting backend: the current Geely Global integration (email + code, per-device certificate).\n\nNew Geely EM platform: the backend behind the new Geely EM app (email + password, Zeekr cloud) - experimental. Complete the app's setup on your phone first.",
+        "description": "Pick the platform your account is on.\n\nExisting backend: the current Geely Global integration (email + code, per-device certificate).\n\nNew Geely / Geely EM platform: the backend behind the new Geely / Geely EM app (email + password, Zeekr cloud) - experimental. Complete the app's setup on your phone first.",
         "data": {
           "platform": "Platform"
         }
       },
       "user": {
         "title": "Geely Connect",
-        "description": "Unofficial community integration - not affiliated with Geely. Pick the backend your account uses (default: the existing Geely backend, email + code). Accounts on the new Geely EM app platform (email + password, experimental) pick that option instead - complete the app's setup on your phone first.\n\nPolling mode decides how often the car is contacted. Geely allows one session per account, so every poll briefly signs the phone app out - pick Manual if that bothers you.",
+        "description": "Unofficial community integration - not affiliated with Geely. Pick the backend your account uses (default: the existing Geely backend, email + code). Accounts on the new Geely / Geely EM app platform (email + password, experimental) pick that option instead - complete the app's setup on your phone first.\n\nPolling mode decides how often the car is contacted. Geely allows one session per account, so every poll briefly signs the phone app out - pick Manual if that bothers you.",
         "data": {
           "platform": "Platform",
           "email": "Email",
@@ -34,8 +34,8 @@
         }
       },
       "zeekr_login": {
-        "title": "Geely EM platform (new app)",
-        "description": "Experimental: the new-platform backend is still being verified on real cars, so treat it as beta.\n\nEnter the email and password you use with the new Geely app. If you have not done so yet, open the new Geely app on your phone first and complete the setup there (the app will walk you through setting a password and linking your vehicle). This integration logs in with email + password only.\n\nStoring the password lets the session renew itself automatically (as the app does). It is your Geely account password: it is redacted from logs and diagnostics, and encrypted at rest if you add a 'geely_password_key' to secrets.yaml (otherwise it is stored in plain text in Home Assistant's storage). Uncheck to re-authenticate manually about every 2 days instead.",
+        "title": "Geely / Geely EM platform (new app)",
+        "description": "European countries require your own local geely_eu_app_keys.json file before signing in. See docs/LOCAL-EU-KEYS.md. This build does not include European app keys.\n\nExperimental: the new-platform backend is still being verified on real cars, so treat it as beta.\n\nEnter the email and password you use with the new Geely app. If you have not done so yet, open the new Geely app on your phone first and complete the setup there (the app will walk you through setting a password and linking your vehicle). This integration logs in with email + password only.\n\nStoring the password lets the session renew itself automatically (as the app does). It is your Geely account password: it is redacted from logs and diagnostics, and encrypted at rest if you add a 'geely_password_key' to secrets.yaml (otherwise it is stored in plain text in Home Assistant's storage). Uncheck to re-authenticate manually about every 2 days instead.",
         "data": {
           "email": "Email",
           "password": "Password",
@@ -56,11 +56,12 @@
     "error": {
       "send_code_failed": "Failed to send the email code. Try again in a minute.",
       "captcha_unreachable": "Home Assistant could not reach Geely's captcha server (captcha4.geely.com). Setup runs from the Home Assistant machine, and this host is in mainland China - check that your network or DNS is not blocking it (Pi-hole/AdGuard blocklists, router geo-filters), then try again.",
-      "network_unreachable": "Home Assistant could not reach the Geely EM platform (zeekrlife.com). Check the network and try again.",
+      "network_unreachable": "Home Assistant could not reach the Geely / Geely EM platform (zeekrlife.com). Check the network and try again.",
       "invalid_code": "That code wasn't accepted. It may have expired (codes are single-use).",
       "invalid_credentials": "That email or password wasn't accepted. If your account is new to the new Geely app, open the app on your phone first and complete the setup there (it sets your password and links your vehicle), then try again.",
       "no_vehicles": "Login succeeded but no vehicles were found on this account. Open the new Geely app on your phone and make sure your vehicle is linked there, then try again.",
-      "unknown": "Something went wrong. Check the logs."
+      "unknown": "Something went wrong. Check the logs.",
+      "eu_app_keys_required": "European app keys are missing or invalid. Put your own geely_eu_app_keys.json in the Home Assistant configuration directory, then try again. See docs/LOCAL-EU-KEYS.md."
     },
     "abort": {
       "already_configured": "This Geely vehicle is already set up.",
@@ -90,7 +91,7 @@
   "issues": {
     "x_vin_missing": {
       "title": "{name}: the new-platform vehicle token could not be derived",
-      "description": "This vehicle lives on the new Geely EM platform, and the token it is addressed by there (the x-vin) could not be derived from any app build this integration knows - the gateway rejected every candidate. Until it has one, rapid warming and cooling, the capability catalogue and the new-gateway status read stay off.\n\nOpen **Configure** on the Geely Connect entry and paste the token from your phone into **Vehicle token for the new platform (x-vin)**. The derivation is retried at every start, so a release that adds your app build clears this by itself."
+      "description": "This vehicle lives on the new Geely / Geely EM platform, and the token it is addressed by there (the x-vin) could not be derived from any app build this integration knows - the gateway rejected every candidate. Until it has one, rapid warming and cooling, the capability catalogue and the new-gateway status read stay off.\n\nOpen **Configure** on the Geely Connect entry and paste the token from your phone into **Vehicle token for the new platform (x-vin)**. The derivation is retried at every start, so a release that adds your app build clears this by itself."
     }
   }
 }
