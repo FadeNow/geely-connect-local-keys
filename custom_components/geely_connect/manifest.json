@@ -9,14 +9,14 @@
     "http",
     "frontend"
   ],
-  "documentation": "https://github.com/YossiKon/geely-connect",
+  "documentation": "https://github.com/FadeNow/geely-connect-local-keys",
   "integration_type": "device",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/YossiKon/geely-connect/issues",
+  "issue_tracker": "https://github.com/FadeNow/geely-connect-local-keys/issues",
   "requirements": [
     "pycryptodome>=3.18.0",
     "numpy>=1.26.0",
     "scipy>=1.11.0"
   ],
-  "version": "1.54.0"
+  "version": "1.54.1.dev3"
 }

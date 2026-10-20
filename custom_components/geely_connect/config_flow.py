@@ -73,6 +73,9 @@ from .const import (
     DOMAIN,
 )
 from .helpers import password_encrypt, vehicle_metadata
+from .zeekr_regions import (
+    EU_APP_COUNTRIES, RegionKeysError, ZeekrRegion, load_region_profile,
+)
 from .zeekr_client import (
     ZeekrApiError,
     ZeekrAuthError,
@@ -136,15 +139,16 @@ def _already_configured_vins(hass) -> set[str]:
     }
 
 
-def _zeekr_login_password(email: str, password: str, country: str) -> ZeekrClient:
+def _zeekr_login_password(email: str, password: str, country: str,
+                          profile: ZeekrRegion | None = None) -> ZeekrClient:
     """Post-switch login: IDaaS password login -> tspCode leg -> logged-in client.
 
     The new platform has NO OTP-only login (codes are operation-bound; the
     forced migration sets a password first). Users must complete the new
     app's setup on a real device before this flow can see their vehicle.
     """
-    token_value = ZeekrIdaas(country=country).login_by_email_password(email, password)
-    client = ZeekrClient(email="", password="")
+    token_value = ZeekrIdaas(country=country, profile=profile).login_by_email_password(email, password)
+    client = ZeekrClient(email="", password="", profile=profile)
     # Thread the picked country through the tspCode + HF legs too - login_tsp
     # builds its own ZeekrIdaas from client.country_code, which otherwise
     # defaults to AU and would run the second half of login as AU.
@@ -576,8 +580,13 @@ class GeelyIntlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._pressure_unit = user_input.get(CONF_PRESSURE_UNIT, DEFAULT_PRESSURE_UNIT)
             self._poll_mode = user_input.get(CONF_POLL_MODE, DEFAULT_POLL_MODE)
             try:
+                login_args = (email, user_input["password"], self._country_code)
+                if self._country_code in EU_APP_COUNTRIES:
+                    profile = await self.hass.async_add_executor_job(
+                        load_region_profile, self.hass.config.path(""), self._country_code)
+                    login_args += (profile,)
                 client = await self.hass.async_add_executor_job(
-                    _zeekr_login_password, email, user_input["password"], self._country_code)
+                    _zeekr_login_password, *login_args)
                 self._zeekr_client = client
                 self._zeekr_tokens = (client.access_token or "", client.refresh_token or "")
                 self._zeekr_hf_token = client.hf_token
@@ -609,6 +618,8 @@ class GeelyIntlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         return await self._finish_zeekr(self._vehicles[0])
                     else:
                         return await self.async_step_zeekr_pick()
+            except RegionKeysError:
+                errors["base"] = "eu_app_keys_required"
             except (ZeekrAuthError, ZeekrApiError) as e:
                 _LOGGER.warning("zeekr login rejected: %s", e)
                 errors["base"] = "invalid_credentials"

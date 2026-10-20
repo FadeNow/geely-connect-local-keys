@@ -105,7 +105,7 @@ PLATFORM_ZEEKR  = "zeekr"
 DEFAULT_PLATFORM = PLATFORM_LEGACY
 PLATFORM_LABELS: dict[str, str] = {
     PLATFORM_LEGACY: "Existing Geely backend (current integration)",
-    PLATFORM_ZEEKR:  "New Geely EM app platform (Zeekr backend) - experimental",
+    PLATFORM_ZEEKR:  "Geely / Geely EM app (Europe / SEA) - experimental",
 }
 
 # User preferences chosen during setup.
