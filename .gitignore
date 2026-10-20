@@ -23,3 +23,11 @@ Thumbs.db
 
 # Serena local project config
 .serena/
+
+# Locally extracted vendor data must never be published.
+geely_eu_app_keys*.json
+*.apk
+*.dex
+*.so
+.local-keys/
+.venv-eu-keys/

@@ -1,3 +1,22 @@
+# Geely Connect — local European app keys
+
+Experimental independent variant of [YossiKon/geely-connect](https://github.com/YossiKon/geely-connect).
+European new-app support requires each installation owner to obtain the app
+keys from their own app copy and keep them in a local Home Assistant file.
+**No European key values or APKs are supplied by this variant.** The upstream
+legacy and SEA implementations retain their existing constants.
+
+**Start with [setup and local extraction](docs/LOCAL-EU-KEYS.md).** Use
+`FadeNow/geely-connect-local-keys` as the HACS custom repository. The upstream
+installation buttons and documentation below refer to the original project.
+This variant uses the same integration directory: install only one at a time.
+
+The optional extractor is run manually on the owner's computer. It never logs
+in, contacts the car or downloads a prepared key file. The integration refuses
+European setup when the local keys are absent.
+
+---
+
 # Geely Connect
 
 [![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=YossiKon&repository=geely-connect&category=integration)
