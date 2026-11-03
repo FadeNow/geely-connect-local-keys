@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Owner-run, offline extraction from their own Geely Android 1.1.1 APKs.
+"""Owner-run, offline extraction from their own Geely Android APKs.
 
 No APK, vendor key, encrypted vendor blob, account data or network client is
-included. Library offsets and DEX names apply only to the documented build.
+included. Android 1.1.1 and the validated ARM64 1.3.0 (10300) are supported.
 This script never connects to a phone, signs in or contacts a vehicle.
 """
 import argparse
@@ -16,6 +16,20 @@ from pathlib import Path
 import re
 import tempfile
 import zipfile
+
+from _apk130 import UnsupportedBuildError, regional_dex, verify_member
+
+
+def _select_build(manifest):
+    if manifest is None or manifest.get("package") != "com.geely.global":
+        raise UnsupportedBuildError()
+    prefix = "{http://schemas.android.com/apk/res/android}"
+    version = manifest.get(prefix + "versionName")
+    if version == "1.1.1":
+        return version
+    if version == "1.3.0" and manifest.get(prefix + "versionCode") == "10300":
+        return version
+    raise UnsupportedBuildError()
 
 
 def _read_member(apk, name, limit=128 * 1024 * 1024):
@@ -40,38 +54,54 @@ def extract_keys(base_path, arm64_path=None):
 
     with zipfile.ZipFile(base_path) as apk:
         manifest = AXMLPrinter(_read_member(apk, "AndroidManifest.xml")).get_xml_obj()
-        if (manifest is None or manifest.get("package") != "com.geely.global"
-                or manifest.get("{http://schemas.android.com/apk/res/android}versionName") != "1.1.1"):
-            raise ValueError("Only com.geely.global Android 1.1.1 is supported")
-        dex = DEX(_read_member(apk, "classes7.dex"))
+        version = _select_build(manifest)
+        dex_bytes = _read_member(apk, "classes7.dex" if version == "1.1.1" else "classes.dex")
     with zipfile.ZipFile(arm64_path or base_path) as apk:
         env_bytes = _read_member(apk, "lib/arm64-v8a/libenv.so")
         ca_bytes = _read_member(apk, "lib/arm64-v8a/libiwallca.so")
+    if version == "1.3.0":
+        verify_member("libenv.so", env_bytes)
+        verify_member("libiwallca.so", ca_bytes)
+        dex_bytes = regional_dex(dex_bytes)
+    dex = DEX(dex_bytes)
 
     # Execute the environment initializer and getters in isolated emulated
     # memory. Unknown imports are rejected; no library is loaded into the host.
     with tempfile.TemporaryDirectory(prefix="geely-offline-") as root:
         lib = Path(root) / "libenv.so"
         lib.write_bytes(env_bytes)
-        native = Native(lib)
-        prefix = "Java_com_zeekr_env_ServerUtils_"
+        if version == "1.3.0":
+            from _native130 import RegisteredNative
+            native = RegisteredNative(lib)
+            native.initialize()
+            methods = native.registered
+        else:
+            native = Native(lib)
+            prefix = "Java_com_zeekr_env_ServerUtils_"
+            methods = {name: prefix + name for name in (
+                "upDateNativeEnvironment", "getNativeHost",
+                "getNativeApplicationId", "getNativeSecret",
+            )}
         # The getters read global state set by this initializer; they take no
         # region arguments themselves. PROD=3, OVERSEAS=3 in this APK.
-        native.call(prefix + "upDateNativeEnvironment", 3, 3)
-        host = native.cstr(native.call(prefix + "getNativeHost")).decode()
+        native.call(methods["upDateNativeEnvironment"], 3, 3)
+        host = native.cstr(native.call(methods["getNativeHost"])).decode()
         if host.rstrip("/") != "gateway-pub-azure.zeekr.eu":
             raise ValueError("The APK does not select the expected European service")
-        values = {}
-        for field, method in (
-            ("hmac_access_key", "getNativeApplicationId"),
-            ("hmac_secret", "getNativeSecret"),
-        ):
-            values[field] = native.cstr(native.call(prefix + method)).decode()
+        values = {
+            "hmac_access_key": native.cstr(native.call(methods["getNativeApplicationId"])).decode(),
+            "hmac_secret": (native.signing_key() if version == "1.3.0" else
+                            native.cstr(native.call(methods["getNativeSecret"])).decode()),
+        }
 
     # Interpret only constant construction of the regional key table.
     blobs = {}
+    table_class, tuple_class, pair_class = (
+        ("Ltj/i;", "Lpk/x0;", "Lpk/y0;") if version == "1.1.1" else
+        ("Lvj/i;", "Lrk/x0;", "Lrk/y0;")
+    )
     for cls in dex.get_classes():
-        if cls.get_name() != "Ltj/i;":
+        if cls.get_name() != table_class:
             continue
         for method in cls.get_methods():
             if method.get_name() not in ("d", "e", "f"):
@@ -92,9 +122,9 @@ def extract_keys(base_path, arm64_path=None):
                     regs[r[0]] = regs[r[1]]
                 elif name.startswith("invoke-virtual") and "->getValue()" in text:
                     result = regs[r[0]]
-                elif name == "invoke-direct" and "Lpk/x0;-><init>" in text:
+                elif name == "invoke-direct" and tuple_class + "-><init>" in text:
                     regs[r[0]]["tuple"] = [regs[n] for n in r[1:]]
-                elif name == "invoke-static" and "Lpk/y0;->a(" in text:
+                elif name == "invoke-static" and pair_class + "->a(" in text:
                     result = [regs[r[0]]["tuple"], regs[r[1]]]
                     if result[0] == ["GEELY", "EU", "PROD"]:
                         blobs[method.get_name()] = result[1]
@@ -169,6 +199,8 @@ def main():
     try:
         values = extract_keys(args.base_apk, args.arm64_apk)
         write_private_file(args.output, values)
+    except UnsupportedBuildError as exc:
+        parser.exit(1, f"{exc} No keys printed.\n")
     except Exception as exc:
         # Exceptions from DEX/crypto/native libraries can contain input values.
         parser.exit(1, f"Extraction failed ({type(exc).__name__}). No keys printed. "
