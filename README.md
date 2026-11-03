@@ -14,6 +14,8 @@ This variant uses the same integration directory: install only one at a time.
 The optional extractor is run manually on the owner's computer. It never logs
 in, contacts the car or downloads a prepared key file. The integration refuses
 European setup when the local keys are absent.
+The extractor supports the validated ARM64 Android app builds **1.1.1** and
+**1.3.0 (10300)**; see the extraction guide for build checks and limitations.
 
 ---
 
