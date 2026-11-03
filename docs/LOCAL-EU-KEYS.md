@@ -14,9 +14,18 @@ authorize every use or redistribution.
 
 ## 1. Obtain your own installed Android app
 
-The included optional extraction tool supports only **com.geely.global 1.1.1,
-ARM64 Android**. It does not support iPhone or assume that another Android
-release has the same layout.
+The included optional extraction tool supports **com.geely.global on ARM64
+Android**, with these locally validated builds:
+
+| App version | Android version code | Extraction |
+| --- | --- | --- |
+| 1.1.1 | 10115 | Original DEX table and native getters |
+| 1.3.0 | 10300 | Embedded DEX table and registered native signing functions |
+
+It does not support iPhone, 1.2.x, other releases or repackaged 1.3.0 builds.
+For 1.3.0 the DEX and both required native libraries must match the validated
+binary fingerprints. An unsupported build reports a clear error and writes
+no output; removing version or fingerprint checks does not add support.
 
 Copy the installed APK files using an Android package-export tool you trust,
 or Android's official platform tools on your own phone. With an explicitly
@@ -35,7 +44,9 @@ for this purpose. Do not upload the APKs to this repository.
 
 ## 2. Run the optional extractor yourself, on your computer
 
-Python 3.12 was used for validation on macOS. From this repository:
+Python 3.12 was used for validation on macOS. Update or download the whole
+repository first: `extract_eu_keys.py` needs the accompanying helper modules
+in `tools/`, so replacing that single file is not sufficient. From this repository:
 
 ```sh
 python3 -m venv .venv-eu-keys
@@ -53,8 +64,13 @@ The extraction itself is offline. Dependency installation requires access to
 the Python package registry. No Geely account, password, email, vehicle data
 or phone connection is used by the extractor. It reads the owner's APKs,
 emulates the library getters in isolated memory and authenticates the decoded
-regional values. Unsupported imports or mismatched data fail; no native
-library is loaded for execution by the host OS.
+regional values. In 1.3.0 the secret getter is empty: the tool identifies the
+signing material in its isolated emulated stack and verifies it against the
+app's own signatures for two local test messages. It does not use a previously
+known key or a key download service. File opens and thread creation requested
+by the emulated library return failure; TLS and mutex state are simulated.
+Unsupported imports or mismatched data fail; no native library is loaded for
+execution by the host OS.
 
 The output is created with mode `0600` on POSIX systems and is never printed.
 The tool refuses to overwrite an existing file or symbolic link. On systems
@@ -76,8 +92,9 @@ text must first be interpreted as the original bytes; the extractor handles
 that distinction.
 
 If you use your own analysis process instead, produce this same JSON shape.
-The reference points for this build are `ServerUtils` with PROD/OVERSEAS,
-and the `GEELY / EU / PROD` entries of `tj/i` methods `d`, `e`, and `f`.
+The reference points are `ServerUtils` with PROD/OVERSEAS, and the
+`GEELY / EU / PROD` entries of methods `d`, `e`, and `f` in `tj/i` (1.1.1)
+or `vj/i` (1.3.0).
 No extractor, key file, or external service is run automatically by HA.
 
 ## 3. Place the file in Home Assistant
@@ -127,8 +144,13 @@ been installed in that owner's working HA instance.
 Validation of this variant includes fake-key login/discovery/renewal tests,
 local-file validation, failure before networking when keys are absent,
 redaction and isolation between installations. Its extractor was run against
-an owner's authorized local 1.1.1 APK copy; all five values matched the working
-profile without printing or including them in the repository.
+an owner's authorized local 1.1.1 and 1.3.0 APK copies on macOS; all five values
+from each build matched the owner's working profile without printing or
+including them in the repository. Synthetic extractor regressions cover build
+rejection, DEX reconstruction, signature verification, output permissions,
+overwrite prevention and safe diagnostics. This is offline extraction
+validation, not a claim that discovery was tested with every vehicle/country;
+testing on the French E2 remains pending.
 
 This repository starts from the original upstream project, not from the
 earlier experimental fork's commits or releases. Creating it does not remove
